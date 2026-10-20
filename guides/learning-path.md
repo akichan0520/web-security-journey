@@ -23,3 +23,11 @@
 ## 新設の詳細講義
 
 [Cookie・セッションハイジャックを基礎から応用まで](deep-dive-06-cookie-session-hijacking.md) — 事件対応の考え方・PHP/JSの比較・Mermaid図・12個以上の確認観点・一次資料リンク付き。
+
+## 詳説へ進む（2026年増補）
+
+- DBの基礎と設計：[`textbooks/01-database-textbook.md`](../textbooks/01-database-textbook.md) をDB-01から順に。特にNULL、LEFT JOIN、隔離レベル、最小権限は重要。
+- Cookieと認証後の防御：[`textbooks/02-cookie-session-textbook.md`](../textbooks/02-cookie-session-textbook.md) をCK-01から順に。Cookie属性は防御対象ごとに区別する。
+- 統合レビュー：[`textbooks/03-database-cookie-integration.md`](../textbooks/03-database-cookie-integration.md) で権限・SQL・Cookieを同時に検討する。
+
+紙上演習を解いてから解答を開き、残るリスクを言語化してください。

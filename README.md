@@ -4,6 +4,20 @@
 
 > 🧠 **実行しない、読むハンズオン**です。実機への攻撃、ローカル環境の構築、脆弱なPHPアプリの起動、Docker、データベース接続は必要ありません。GitHub上のコードだけで、**何が起きる／なぜ危ない／どう直す／直した後も何に注意する**を学びます。
 
+## 📚 大幅増補：DB・Cookieの「読む参考書」シリーズ
+
+> **2026-10-20改訂：既存36章は残したまま、深掘り参考書を3冊追加。** 教材は完全に読解型。PHPやDBを起動する必要はありません。
+
+| 参考書 | 学習範囲 | GitHubで読む | 音声付きWeb版 |
+|---|---|---|---|
+| **第1巻：データベース完全読本（18講義）** | DBMS、SQL、NULL、JOIN、制約、正規化、ACID、同時更新、隔離、MVCC、索引、EXPLAIN、PDO、SQLi、運用 | [Markdownで読む](textbooks/01-database-textbook.md) | [Web版](docs/database-book.html) |
+| **第2巻：Cookie・セッション完全読本（20講義）** | HTTP Cookie、属性、SameSite、PHP、窃取の経路、MFA、失効、CSRF、SOC、DBSC | [Markdownで読む](textbooks/02-cookie-session-textbook.md) | [Web版](docs/cookie-book.html) |
+| **総合編：Cookie×DBの設計レビュー** | ログイン済みの注文閲覧APIで認証・認可・SQL・ログを統合 | [Markdownで読む](textbooks/03-database-cookie-integration.md) | [Web版](docs/integration-book.html) |
+
+全ての講義に**詳説・比較コード・紙上演習・理由付き解答・講師用ナレーション**があります。各巻末に参考文献（OWASP・MDN・IETF・NIST・PHP・SQLite・PostgreSQL・MySQL公式）を列挙しています。コードの実行、実ネットワークへのアクセス、DB接続はありません。Web版の読み上げはブラウザのローカル音声合成を使用します。
+
+**おすすめの順序：** 第12〜15章を読んだらDB完全読本、第31〜36章を読んだらCookie完全読本、最後に総合編。正本はそれぞれの `textbooks/*.md` です。Web版の再生成は `tools/build_textbooks.py` で行います（任意、生成時にPython＋mistuneが必要。閲覧する人には不要）。
+
 ## 入口
 
 - **教材ポータル：** [`docs/index.html`](docs/index.html) — 36章を検索・切替できる画面。ナレーション読み上げ、比較コード、理解度チェック付き

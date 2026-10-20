@@ -1,0 +1,656 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="全20講義｜Cookie属性・HTTP・PHPセッション・乗っ取り・MFA・監視・DBSC。実行せずに読める日本語の技術参考書。"><title>Cookie・セッション完全読本 | Web Security Journey</title><link rel="stylesheet" href="textbook.css"></head>
+<body><a href="#main" class="skip">本文へ移動</a><header class="top"><div class="brand">&lt;/&gt; WEB SECURITY JOURNEY — REFERENCE LIBRARY</div><nav class="toplinks" aria-label="ほかの教材"><a href="index.html">全36章</a> <a href="database-book.html">DB読本</a> <a href="integration-book.html">総合編</a></nav></header>
+<div class="layout"><aside class="sidebar" aria-label="章ナビゲーション"><div class="eyebrow">COOKIE &amp; SESSION REFERENCE</div><h2>Cookie・セッション完全読本</h2><label for="toc-filter" class="small">目次を検索</label><input id="toc-filter" type="search" class="search" placeholder="キーワードで章を絞り込む"><nav class="toc"><a href="#appendix-1">読み方</a>
+<a href="#ck-01">CK-01｜Cookieの正体：パスワードでもプログラムでもない</a>
+<a href="#ck-02">CK-02｜HTTPは原則ステートレス：どうやってログインを覚えるのか</a>
+<a href="#ck-03">CK-03｜Cookieヘッダーを1文字ずつ読んでみる</a>
+<a href="#ck-04">CK-04｜Expires・Max-Age・セッションCookieと「失効」の違い</a>
+<a href="#ck-05">CK-05｜Domain・Path・Secure・HttpOnlyを混同しない</a>
+<a href="#ck-06">CK-06｜SameSiteを理解する鍵は「サイト」と「オリジン」</a>
+<a href="#ck-07">CK-07｜__Host-、__Secure-、Partitioned、CHIPSを読む</a>
+<a href="#ck-08">CK-08｜JavaScript・localStorage・sessionStorageと認証情報</a>
+<a href="#ck-09">CK-09｜PHPのセッションはどこに保存される？</a>
+<a href="#ck-10">CK-10｜PHPの安全側コードを行ごとに解剖する</a>
+<a href="#ck-11">CK-11｜セッション固定：盗まなくても起こり得る脅威</a>
+<a href="#ck-12">CK-12｜Cookie窃取とセッションハイジャックの分類</a>
+<a href="#ck-13">CK-13｜MFA・パスキーがあってもセッションが危険な理由</a>
+<a href="#ck-14">CK-14｜セッション保存先・失効・ローテーション・同時ログイン</a>
+<a href="#ck-15">CK-15｜CSRFはなぜ起きる？ Cookieが「自動」で送られるため</a>
+<a href="#ck-16">CK-16｜JWT、OAuth、アクセストークンとCookieの違い</a>
+<a href="#ck-17">CK-17｜ログから盗難セッションの兆候を読む：SOC/CSIRT編</a>
+<a href="#ck-18">CK-18｜侵害時に何をする？ 失効・端末調査・再認証</a>
+<a href="#ck-19">CK-19｜DBSC・デバイス結合と将来の防御：何が変わる？</a>
+<a href="#ck-20">CK-20｜総合ケーススタディ：設計レビューを完成させよう</a>
+<a href="#appendix-22">用語辞典：言葉の違いを即答できるようにする</a>
+<a href="#appendix-23">公式根拠と参照先</a>
+<a href="#appendix-24">知識チェック：次の3つを口頭で説明できれば合格</a></nav><p class="hint">本文はすべて学習用の静的な文章とコードブロックです。PHPやSQLのサンプルは実行されません。音声読み上げはブラウザ端末内の機能です。</p></aside>
+<main id="main"><div class="intro"><div class="eyebrow">COOKIE &amp; SESSION REFERENCE · READ ONLY</div><h1>Cookie・セッション完全読本</h1><p>全20講義｜Cookie属性・HTTP・PHPセッション・乗っ取り・MFA・監視・DBSC</p></div><div class="controls" aria-label="読み上げ操作"><button type="button" id="voice-play">▶ 選択中の章を読み上げ</button><button type="button" id="voice-stop">■ 停止</button><label class="small" for="voice-rate">速度</label><select id="voice-rate"><option value="0.85">ゆっくり</option><option value="1" selected>標準</option><option value="1.15">速め</option></select><span id="voice-status" role="status" aria-live="polite">左の目次で章を選んでください</span></div>
+<div class="content"><h1>Cookie・セッション完全読本 — HTTPの基礎から乗っ取り対策、検知、次世代防御まで</h1>
+<blockquote>
+<p>Web Security Journey / <strong>読解専用・実機検証なし</strong> / 2026-10-20確認<br />
+以下のID・ログ・ドメインはすべて架空。実際のCookieや認証情報を収集するコード、セッションを第三者に送信するコード、攻撃操作は収録しません。<br />
+仕様・プラットフォーム・実装を区別し、<code>HttpOnly</code> などの属性を<strong>万能な防御策として説明しない</strong>ことを重視します。</p>
+</blockquote>
+<section class="chapter" id="appendix-1"><h2>読み方</h2>
+<p>Cookie（ブラウザが保存するデータ）→セッション（サーバーが維持する認証状態）→乗っ取り（有効な権限の不正利用）→防御→検知→失効、の順です。各章は<strong>定義→通信図/コード→何が危険か→正しい設計→紙上演習→答え→講師ナレーション</strong>で進みます。基礎から深掘りするため、第31〜36章の拡張参考書として使用します。</p>
+<hr />
+</section><section class="chapter" id="ck-01"><h2>CK-01｜Cookieの正体：パスワードでもプログラムでもない</h2>
+<p><strong>定義：</strong> HTTP Cookieは、Webサーバーが <code>Set-Cookie</code> ヘッダーでブラウザに保存を依頼し、ブラウザが条件を満たす後続要求に <code>Cookie</code> ヘッダーとして添付する<strong>名前と値</strong>の仕組みです。利用目的はログイン維持、表示設定、買い物かご、分析識別子などさまざま。<strong>Cookieが存在すること自体では認証されません。</strong> [C1][C2]</p>
+<pre><code class="language-text">① ブラウザ → サーバー   GET /account
+② サーバー → ブラウザ   Set-Cookie: theme=dark; Path=/; SameSite=Lax
+③ ブラウザ内部          theme=dark を条件付きで保存
+④ ブラウザ → サーバー   Cookie: theme=dark
+⑤ サーバー              表示設定として利用（認証とは無関係）
+</code></pre>
+<p><code>Set-Cookie</code>は<strong>レスポンス</strong>、<code>Cookie</code>は<strong>リクエスト</strong>です。送られるのは通常値だけで、<code>HttpOnly</code> や <code>Secure</code> などの属性は <code>Cookie</code> リクエストヘッダーに再掲されません。ブラウザが保存時の属性を判断に使用します。[C2]</p>
+<p><strong>紙上演習：</strong> <code>Cookie: theme=dark</code> が届いたら、この人はログイン済みだと判断できる？</p>
+<details><summary>答え</summary>判断できません。テーマは表示設定に過ぎません。認証するなら、サーバーが信頼できるセッションや署名・検証済みトークンなどを検証する必要があります。</details>
+
+<p><strong>講師ナレーション：</strong> 「Cookieは箱です。中身を誰がどう扱うかによって単なる好みの記録にも、重要なセッション秘密にもなります。」</p>
+<hr />
+</section><section class="chapter" id="ck-02"><h2>CK-02｜HTTPは原則ステートレス：どうやってログインを覚えるのか</h2>
+<p><strong>原理：</strong> HTTP要求は原則独立しています。複数回の要求の間で認証状態を保持するため、サーバーがランダムなセッションIDを発行し、保存先にログインユーザーとの対応を記録する設計が広く用いられます。</p>
+<pre><code class="language-text">ブラウザ                      アプリ                     セッション保存先
+   │ POST /login（本人確認）     │                            │
+   ├───────────────────────────&gt;│ ①認証成功                  │
+   │                            ├──② ID と user_id を保存──&gt;│
+   │&lt;──③ Set-Cookie: ... ────────┤                            │
+   │ GET /account + Cookie      │                            │
+   ├───────────────────────────&gt;├──④ IDの期限/失効を確認───&gt;│
+   │                            │&lt;──⑤有効なuser_id ──────────┤
+   │&lt;──⑥認可した画面────────────┤                            │
+</code></pre>
+<p><strong>Bearer（持参人）型の性質：</strong> サーバーが識別子の<strong>所持</strong>だけでセッションの継続を認める設計では、秘密値が第三者に渡ると有効期間内に不正利用され得ます。ログインに二要素認証を使っても、その後の識別子が保護されるとは限りません。[C5][C6]</p>
+<p><strong>紙上演習：</strong> ログインパスワードをDBに保存しておけば、Cookieは不要になる？</p>
+<details><summary>答え</summary>不要にはなりません。毎回パスワードを送る方式には多くの問題があります。認証後のセッション継続を適切に管理します。パスワードは平文保存せず、専用のハッシュ方式で検証します。</details>
+
+<p><strong>講師ナレーション：</strong> 「認証は入口、セッションは入館後の継続許可です。守るべき対象は入口だけではありません。」</p>
+<hr />
+</section><section class="chapter" id="ck-03"><h2>CK-03｜Cookieヘッダーを1文字ずつ読んでみる</h2>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Set-Cookie: __Host-session=[架空のランダムID]; Path=/; Secure; HttpOnly; SameSite=Lax
+Cache-Control: no-store
+</code></pre>
+<table>
+<thead>
+<tr>
+  <th>部分</th>
+  <th>役割</th>
+  <th>間違えやすい点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Set-Cookie:</code></td>
+  <td>ブラウザに保存を指示するHTTPレスポンスヘッダー</td>
+  <td>HTMLの一部ではない</td>
+</tr>
+<tr>
+  <td><code>__Host-session</code></td>
+  <td>Cookie名。<code>__Host-</code> プレフィックスの制約を利用</td>
+  <td>対応ブラウザ・正しい属性が必要</td>
+</tr>
+<tr>
+  <td><code>[架空のランダムID]</code></td>
+  <td>サーバーのセッション保存先に関連付く秘密</td>
+  <td>個人情報やパスワードを直接入れない</td>
+</tr>
+<tr>
+  <td><code>Path=/</code></td>
+  <td>対象ホストで送信対象となるパス範囲</td>
+  <td>アクセス権・秘密の隔離機構ではない</td>
+</tr>
+<tr>
+  <td><code>Secure</code></td>
+  <td>HTTPS等のセキュアな接続でのみ送る属性</td>
+  <td>端末侵害やXSSによる操作は防げない</td>
+</tr>
+<tr>
+  <td><code>HttpOnly</code></td>
+  <td>JSからのCookie読み取りを制限</td>
+  <td>ブラウザからの要求にはCookieが付く</td>
+</tr>
+<tr>
+  <td><code>SameSite=Lax</code></td>
+  <td>クロスサイトの送信条件を制御</td>
+  <td>CSRF対策の一層であって万能ではない</td>
+</tr>
+<tr>
+  <td><code>Cache-Control: no-store</code></td>
+  <td>機密応答のキャッシュ保存を抑える指示</td>
+  <td>セッションIDの有効期限管理とは別</td>
+</tr>
+</tbody>
+</table>
+<p><code>__Host-</code> Cookieには <code>Secure</code>、<code>Path=/</code>、<strong>Domain属性なし</strong>が必要です。<strong>Cookieヘッダーにこれらの属性は返ってこない</strong>ため、サーバーは受信した値だけから元の属性を判断できません。[C2][C3]</p>
+<p><strong>紙上演習：</strong> <code>Cookie: __Host-session=[架空ID]</code> という要求ヘッダーだけを見て、保存時に <code>HttpOnly</code> があったと断定できる？</p>
+<details><summary>答え</summary>できません。要求のCookieヘッダーには属性が載らず、ブラウザ側の保存条件やサーバー設定と照合する必要があります。</details>
+
+<p><strong>講師ナレーション：</strong> 「HTTPの一行には向きがあります。Set-CookieとCookieを区別できることが、乗っ取り防御の最初の一歩です。」</p>
+<hr />
+</section><section class="chapter" id="ck-04"><h2>CK-04｜Expires・Max-Age・セッションCookieと「失効」の違い</h2>
+<p><code>Expires</code> は日時、<code>Max-Age</code> は秒数でCookieの保持期間を示します。両方あれば通常 <code>Max-Age</code> が優先されます。どちらもなければ一般にセッションCookieですが、ブラウザの復元機能などによりブラウザを閉じても維持される場合があります。[C2][C3]</p>
+<p><strong>最重要の区別：</strong> ブラウザからCookieを消すことと、サーバーがセッションIDを<strong>受理しなくすること</strong>は違います。Cookieを削除しても、第三者が既に持っている同じ値をサーバーが受理すれば不正利用が続き得ます。[C5]</p>
+<pre><code class="language-text">Cookieの保持期間           → ブラウザがいつ捨てるか
+セッションのアイドル期限   → 最後の操作からいつ失効させるか
+セッションの絶対期限       → 最後のログイン等から最長いつまでか
+サーバー側の明示失効       → IDを以後受け付けない操作
+</code></pre>
+<p><strong>紙上演習：</strong> ログアウト時に <code>Max-Age=0</code> を送るだけで、窃取済みのセッションIDも安全になる？</p>
+<details><summary>答え</summary>安全とは限りません。ブラウザ側削除と並行して、サーバー側でセッションを失効させる必要があります。期限判定もサーバー側で強制します。</details>
+
+<p><strong>講師ナレーション：</strong> 「ブラウザが忘れることと、サーバーが拒否することは別です。侵害時に本当に必要なのはサーバー側の拒否です。」</p>
+<hr />
+</section><section class="chapter" id="ck-05"><h2>CK-05｜Domain・Path・Secure・HttpOnlyを混同しない</h2>
+<ul>
+<li><strong>Domainなし</strong>：原則そのホストに限定する host-only Cookie。共有範囲が狭く、認証用途で推奨されやすい。</li>
+<li><strong>Domainあり</strong>：指定ドメインと対象サブドメインに広がる。サブドメインの信頼を慎重に評価。</li>
+<li><strong>Path</strong>：送信するパスのフィルタ。<strong>セキュリティ境界ではない</strong>。同一ホスト内のパス同士を隔離する目的には不適切。</li>
+<li><strong>Secure</strong>：通常のHTTP平文通信での送信を制限。ただし、端末侵害や正規接続中の悪用を防ぐものではない。</li>
+<li><strong>HttpOnly</strong>：<code>document.cookie</code> 等からの読み取りを制限。一方、<code>fetch()</code> 等の通信条件に応じてCookie自体は自動送信され得る。[C2][C3]</li>
+</ul>
+<h3>反例（概念比較）</h3>
+<pre><code class="language-http">Set-Cookie: session=[架空ID]; Domain=example.test; Path=/; Max-Age=2592000
+</code></pre>
+<p>この反例は「絶対に漏れる」という意味ではありません。ただし <code>Secure</code>、<code>HttpOnly</code>、<code>SameSite</code> がなく、共有範囲が広く、長期有効で、リスクを増やし得る設定です。</p>
+<p><strong>紙上演習：</strong> <code>Path=/admin</code> にすれば同一ドメインの別のアプリからCookieを守れる？</p>
+<details><summary>答え</summary>いいえ。Pathは送信範囲のヒントであり、安全なアプリ分離の境界ではありません。異なる信頼領域は別ホストなどに分離します。</details>
+
+<p><strong>講師ナレーション：</strong> 「Cookie属性は『誰に何を制限するか』をそれぞれ区別して理解しましょう。」</p>
+<hr />
+</section><section class="chapter" id="ck-06"><h2>CK-06｜SameSiteを理解する鍵は「サイト」と「オリジン」</h2>
+<p><strong>オリジン（origin）</strong> は原則 <code>スキーム + ホスト + ポート</code> の組。<strong>サイト（site）</strong> は原則スキームと登録可能ドメインで判断する考え方です。サブドメインやポートの違いで<strong>同じサイトだが異なるオリジン</strong>となることがあります。CORSのsame-originとCookieのSameSiteを同一視してはいけません。[C3][C7]</p>
+<table>
+<thead>
+<tr>
+  <th>SameSite</th>
+  <th>主な挙動</th>
+  <th>トレードオフ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>Strict</code></td>
+  <td>クロスサイト要求では基本的に送らない</td>
+  <td>外部サイトからのリンク遷移でログイン状態が扱いにくい場面</td>
+</tr>
+<tr>
+  <td><code>Lax</code></td>
+  <td>クロスサイトでのトップレベル安全メソッド遷移などには送られ得る</td>
+  <td>通常のUXとCSRF軽減のバランス</td>
+</tr>
+<tr>
+  <td><code>None</code></td>
+  <td>クロスサイトにも送信可能（<code>Secure</code>が必要）</td>
+  <td>埋め込み利用など。別途CSRF・プライバシー対策が重要</td>
+</tr>
+</tbody>
+</table>
+<p><strong>注意：</strong> 省略時の既定挙動や例外はブラウザ・バージョンに依存し得ます。<strong>SameSiteを指定しただけでCSRFが絶対に防げるとは断定しない</strong>でください。重要な状態変更にはサーバー側のCSRF対策も組み合わせます。[C3][C8]</p>
+<p><strong>紙上演習：</strong> <code>portal.example.test</code> と <code>api.example.test</code> はsame-origin？ same-site？</p>
+<details><summary>答え</summary>ホストが違うためsame-originではありません。同じスキームで同じ登録可能ドメインなら一般にsame-siteです（`example.test` は説明用名）。この違いがCookie・CORS・CSRFの設計を複雑にします。</details>
+
+<p><strong>講師ナレーション：</strong> 「originとsiteは似ていて別のルールです。SameSiteはCORSを置き換える機能ではありません。」</p>
+<hr />
+</section><section class="chapter" id="ck-07"><h2>CK-07｜__Host-、__Secure-、Partitioned、CHIPSを読む</h2>
+<p><strong>Cookieプレフィックス</strong>は対応ブラウザがセット時に属性制約を検証するための命名規則です。</p>
+<table>
+<thead>
+<tr>
+  <th>接頭辞</th>
+  <th>ブラウザ側で求められる主な制約</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>__Secure-</code></td>
+  <td>Secureな接続と <code>Secure</code> 属性</td>
+</tr>
+<tr>
+  <td><code>__Host-</code></td>
+  <td>上記に加え、<code>Domain</code> なし、<code>Path=/</code></td>
+</tr>
+<tr>
+  <td><code>__Http-</code></td>
+  <td>Secureな接続、<code>Secure</code>、<code>HttpOnly</code>。対応状況に注意</td>
+</tr>
+<tr>
+  <td><code>__Host-Http-</code></td>
+  <td><code>__Host-</code> と <code>__Http-</code> の制約の組合せ。対応状況に注意</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CHIPS（Partitioned Cookie）</strong>は、第三者のCookieをトップレベルサイトごとの区画で保持する仕組み。<strong>Cookie盗難そのものを防ぐ暗号技術ではありません</strong>。埋め込み用途や追跡防止などに関わるブラウザの保存・送信範囲の機能です。[C3][C10]</p>
+<pre><code class="language-http">Set-Cookie: __Host-widget=[架空値]; Secure; Path=/; SameSite=None; Partitioned
+</code></pre>
+<p><strong>紙上演習：</strong> <code>Set-Cookie: __Host-session=...; Domain=example.test; Path=/; Secure</code> は期待通り保存される？</p>
+<details><summary>答え</summary>対応ブラウザでは `__Host-` の条件に反する `Domain` 属性があるため拒否されます。プレフィックスの文字列を付けるだけでなく、制約に従う必要があります。</details>
+
+<p><strong>講師ナレーション：</strong> 「Cookieの名前には、設定を強制する仕組みがあります。ただし利用するブラウザの対応状況まで確認が必要です。」</p>
+<hr />
+</section><section class="chapter" id="ck-08"><h2>CK-08｜JavaScript・localStorage・sessionStorageと認証情報</h2>
+<table>
+<thead>
+<tr>
+  <th>保存先</th>
+  <th>JSから読み出し</th>
+  <th>自動送信</th>
+  <th>主なリスク・注意</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>HttpOnly Cookie</td>
+  <td>通常不可</td>
+  <td>Cookie条件による</td>
+  <td>XSSでCookieを読めなくても不正要求は成立し得る</td>
+</tr>
+<tr>
+  <td>JSから読めるCookie</td>
+  <td>可</td>
+  <td>Cookie条件による</td>
+  <td>XSSで内容を読まれ得る</td>
+</tr>
+<tr>
+  <td>localStorage</td>
+  <td>可</td>
+  <td>自動では送信されない</td>
+  <td>XSSで値が読まれ得る。長期保存になる場合</td>
+</tr>
+<tr>
+  <td>sessionStorage</td>
+  <td>可</td>
+  <td>自動では送信されない</td>
+  <td>タブ単位の寿命が主。XSSの影響を受け得る</td>
+</tr>
+</tbody>
+</table>
+<p><strong>よくある誤解：</strong> 「localStorageならCookieの乗っ取りはゼロ」。ブラウザが勝手に添付しない代わりに、JavaScriptからアクセスできるため、XSS時の資格情報窃取リスクを考えます。HttpOnly Cookieを使ってもCSRF等の対策が不要になるわけではありません。[C3][C5]</p>
+<p><strong>紙上演習：</strong> HttpOnly設定をしていれば、XSSはログイン中の重要操作を行えない？</p>
+<details><summary>答え</summary>そうとは限りません。XSSが同じWebアプリの実行コンテキストで動くと、ブラウザがCookieを伴う要求を送る場合があります。文脈別出力エスケープやCSP、重要操作への再認証などが必要です。</details>
+
+<p><strong>講師ナレーション：</strong> 「読み取られる危険と、利用者のブラウザに操作をさせる危険は分けて考えます。」</p>
+<hr />
+</section><section class="chapter" id="ck-09"><h2>CK-09｜PHPのセッションはどこに保存される？</h2>
+<p>PHPでは <code>session_start()</code> によってセッションを開き、<code>$_SESSION</code> に状態を保存するのが基本です。ただし、実際の保存先はハンドラや設定によってファイル、Redis、DBなどがあり得ます。</p>
+<pre><code class="language-php">&lt;?php
+// 概念説明：リクエスト開始前にセッション設定済みとする
+session_start();
+$_SESSION['user_id'] = 42;
+// Cookieには通常 user_id=42 そのものではなくセッションIDが載る
+</code></pre>
+<p><strong>流れ：</strong> <code>Cookie: PHPSESSID=...</code>（名称は設定による）→PHPが識別子を確認→保存先にアクセス→ <code>$_SESSION['user_id']</code> を利用する。<strong>認可はここからさらに必要</strong>です。</p>
+<p><code>session.use_strict_mode=1</code> は未初期化の外部由来IDを拒否する設定で、セッション固定の緩和に重要です。ただし、既に有効なIDの窃取に対する万能策ではありません。[C9]</p>
+<p><strong>紙上演習：</strong> <code>$_SESSION['user_id']</code> があれば、注文IDさえ指定できれば他人の注文を読んでもよい？</p>
+<details><summary>答え</summary>よくありません。ログインの確認と個々の注文の所有者・権限確認は別です。認証だけではIDOR/BOLAを防げません。</details>
+
+<p><strong>講師ナレーション：</strong> 「セッションにユーザーIDが保存されていても、データの操作権限までは自動では決まりません。」</p>
+<hr />
+</section><section class="chapter" id="ck-10"><h2>CK-10｜PHPの安全側コードを行ごとに解剖する</h2>
+<p>以下は<strong>セッション初期設定部分の読解用</strong>です。完全な認証実装ではなく、HTTPSを前提とします。</p>
+<pre><code class="language-php">&lt;?php
+declare(strict_types=1);
+ini_set('session.use_strict_mode', '1');
+ini_set('session.use_only_cookies', '1');
+session_name('__Host-session');
+session_set_cookie_params([
+    'lifetime' =&gt; 0,
+    'path' =&gt; '/',
+    'secure' =&gt; true,
+    'httponly' =&gt; true,
+    'samesite' =&gt; 'Lax',
+]);
+session_start();
+</code></pre>
+<table>
+<thead>
+<tr>
+  <th>行</th>
+  <th>役割</th>
+  <th>限界・補足</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>strict_types</code></td>
+  <td>PHPの型の扱いを厳格化する宣言</td>
+  <td>セッション安全性の直接対策ではない</td>
+</tr>
+<tr>
+  <td><code>session.use_strict_mode</code></td>
+  <td>未初期化IDを拒否</td>
+  <td>有効な盗難IDまで必ず拒否するわけではない</td>
+</tr>
+<tr>
+  <td><code>session.use_only_cookies</code></td>
+  <td>URLなどによるID受け渡しを避ける</td>
+  <td>Cookie漏えいまでは防げない</td>
+</tr>
+<tr>
+  <td><code>session_name('__Host-session')</code></td>
+  <td>安全なスコープ制約を使いやすくする</td>
+  <td>属性が条件に合っている必要がある</td>
+</tr>
+<tr>
+  <td><code>lifetime=0</code></td>
+  <td>Cookieに永続期間を付けない</td>
+  <td>サーバー期限の代わりにはならない</td>
+</tr>
+<tr>
+  <td><code>path='/'</code></td>
+  <td><code>__Host-</code>の必須条件</td>
+  <td>Pathは認可境界ではない</td>
+</tr>
+<tr>
+  <td><code>secure=true</code></td>
+  <td>HTTPSでのみ送信</td>
+  <td>HTTPSサイト前提。HTTPでは通常送られない</td>
+</tr>
+<tr>
+  <td><code>httponly=true</code></td>
+  <td>JSによるCookie参照を抑える</td>
+  <td>CSRFやXSS由来の操作は別対策</td>
+</tr>
+<tr>
+  <td><code>samesite='Lax'</code></td>
+  <td>クロスサイト時の送信制限</td>
+  <td>重要操作はCSRF対策も必要</td>
+</tr>
+<tr>
+  <td><code>session_start()</code></td>
+  <td>保存先のセッションを開く</td>
+  <td>設定は<strong>前</strong>に行う必要がある</td>
+</tr>
+</tbody>
+</table>
+<p><strong>注意：</strong> <code>ini_set</code> の設定可否やカスタムセッションハンドラの挙動は環境で確認が必要です。サーバー側の期限・セッションストア・失効・ログアウト処理、セッションID再生成、例外処理は別途設計します。[C9][C11]</p>
+<p><strong>紙上演習：</strong> <code>session_start()</code> の<strong>後</strong>で <code>session_set_cookie_params()</code> すれば現在のCookieに必ず反映される？</p>
+<details><summary>答え</summary>いいえ。PHP公式は `session_start()` 前に設定するよう案内しています。先に開始してしまうと期待通り反映されません。</details>
+
+<p><strong>講師ナレーション：</strong> 「安全な設定も、適用する順番を間違えると効果がありません。コードは1行ずつ読みます。」</p>
+<hr />
+</section><section class="chapter" id="ck-11"><h2>CK-11｜セッション固定：盗まなくても起こり得る脅威</h2>
+<p><strong>セッション固定（Session Fixation）</strong>は、攻撃者が事前に把握するセッションIDを認証後も使わせる問題です。単純なセッション窃取（ログイン後に盗むこと）とは異なります。成否は、IDの導入経路、サーバーの厳格モード、認証前後のID再生成、古いIDの扱いなどに依存します。[C5][C9]</p>
+<pre><code class="language-text">認証前ID: 旧ID（認証されていない状態）
+             │ ログイン成功
+             ▼
+認証後ID: 新ID（独立したランダム識別子）
+             │ 旧IDは認証済み権限を持たせない
+             ▼
+サーバー側で期限・失効・所有者を照合
+</code></pre>
+<p><strong>改善の柱：</strong> 認証時/権限変更時のセッションID再生成、古いIDの安全な扱い、Strict Mode、有効期限、サーバー側失効。<code>session_regenerate_id()</code> の利用では競合要求やモバイル通信の切断、古いセッションの破棄時点も含めて公式マニュアルの注意事項を読む必要があります。[C9][C12]</p>
+<p><strong>紙上演習：</strong> ログイン前に同じIDが保存され、ログイン後もIDが変わらない設計はなぜ問題？</p>
+<details><summary>答え</summary>認証前にIDを知っていた主体が、そのIDを認証後にも利用できる設計になり得るためです。認証の境界で新しいIDに切り替える必要があります。</details>
+
+<p><strong>講師ナレーション：</strong> 「盗まれたIDと、先に知られていたID。どちらも『本人以外が識別子を持つ』ことが共通の危険です。」</p>
+<hr />
+</section><section class="chapter" id="ck-12"><h2>CK-12｜Cookie窃取とセッションハイジャックの分類</h2>
+<p><strong>脅威モデリング</strong>では、被害が発生したという結果と、そこに至った原因を切り分けます。</p>
+<table>
+<thead>
+<tr>
+  <th>経路</th>
+  <th>攻撃者が得るもの／起こすこと</th>
+  <th>防御の中心</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>情報窃取型マルウェア</td>
+  <td>端末やブラウザ内のセッション情報</td>
+  <td>端末保護、セッション失効、セッション結合技術</td>
+</tr>
+<tr>
+  <td>悪意あるブラウザ拡張</td>
+  <td>権限の過剰な拡張機能を通じた閲覧・操作</td>
+  <td>拡張の制限・監査、機密情報の保護</td>
+</tr>
+<tr>
+  <td>XSS</td>
+  <td>ブラウザ内の任意動作、設定によっては値の読取</td>
+  <td>出力文脈別エスケープ、危険なAPI回避、CSP</td>
+</tr>
+<tr>
+  <td>通信やログの漏えい</td>
+  <td>セッション秘密が外部へ露出</td>
+  <td>TLS、秘密をURL/ログに含めない</td>
+</tr>
+<tr>
+  <td>セッション固定</td>
+  <td>認証前に知られているIDを認証後に利用</td>
+  <td>認証時ID更新、厳格モード</td>
+</tr>
+<tr>
+  <td>CSRF</td>
+  <td>Cookieの自動送信を悪用した本人ブラウザでの操作</td>
+  <td>CSRFトークン、Origin検証、SameSite</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CSRF ≠ Cookie窃取</strong>、<strong>XSS ≠ Cookie窃取</strong>。XSSでCookieを読めない設計でも、同じオリジン上の操作権限を悪用できる場合があります。経路と目的を分けると防御の理由が明瞭になります。[C5][C6][C8]</p>
+<p><strong>紙上演習：</strong> <code>HttpOnly</code> なのにログイン中に勝手に設定が変わった。どんなリスクが残る？</p>
+<details><summary>答え</summary>同一サイトでのXSSによる操作、CSRF、アプリの認可不備、侵害端末からの正規に見える要求などが考えられます。HttpOnlyの役割はCookieのJS読み取り制限であり、それ以外を完全防御するものではありません。</details>
+
+<p><strong>講師ナレーション：</strong> 「同じ被害に見えても、原因によって必要な対策は違います。用語を混ぜないことが調査の第一歩です。」</p>
+<hr />
+</section><section class="chapter" id="ck-13"><h2>CK-13｜MFA・パスキーがあってもセッションが危険な理由</h2>
+<p><strong>MFA・パスキー</strong>は主にログイン過程での本人確認を強化します。しかしログイン済みのセッション識別子をサーバーが持参人型で扱う場合、識別子自体の盗難が有効期間内の不正利用を可能にし得ます。強い認証を否定する話ではなく、<strong>認証後の秘密を別の層で守る</strong>という話です。[C5][C6]</p>
+<pre><code class="language-text">認証前：パスワード / パスキー / MFA → 本人確認に成功
+認証後：セッションID → 多数の要求のたびに継続判定
+         ↑ このIDが失われれば認証の強さとは別の問題が生じる
+</code></pre>
+<p><strong>設計判断：</strong> 重要操作（送金・秘密変更・管理者操作）には、通常のセッション継続に加え、再認証・独立した確認・明示的な権限の再評価を検討します。ただし再認証要求は全ての攻撃を防ぐわけではありません。</p>
+<p><strong>紙上演習：</strong> パスキー必須としたら、セッション失効機構を削除してよい？</p>
+<details><summary>答え</summary>いいえ。セッション秘密が侵害された場合の遮断、端末紛失、ログアウト、期限、権限変更に対応するため、失効機構は必要です。</details>
+
+<p><strong>講師ナレーション：</strong> 「強い入口と、強い滞在管理はセットで必要です。片方だけでは十分ではありません。」</p>
+<hr />
+</section><section class="chapter" id="ck-14"><h2>CK-14｜セッション保存先・失効・ローテーション・同時ログイン</h2>
+<p>有効なセッションをサーバー側で識別・失効できる設計では、保存データの例として <code>session_id_hash / user_id / created_at / last_seen_at / absolute_expires_at / revoked_at / device_label</code> などを検討できます。<strong>生のセッションIDはデータベースやログにも不要に残さない</strong>ことが望まれます。照合用にはセッション秘密の適切なハッシュ化等を検討します。</p>
+<pre><code class="language-text">要求が来たら
+  ① Cookieを取得（なければ未認証）
+  ② 保存先を照合（存在しなければ拒否）
+  ③ revoked_at / idle期限 / 絶対期限を検証
+  ④ 必要なら権限変更・端末リスクを評価
+  ⑤ 対象APIの認可を検証して応答
+</code></pre>
+<p><strong>同時ログイン</strong>：端末ごとにセッションを分ける設計なら、「この端末だけログアウト」と「全端末でログアウト」を区別できます。パスワード変更・重大な権限変更時はどのセッションを無効化するかを定義します。</p>
+<p><strong>ローテーション</strong>：頻繁な再発行だけでなく、古いIDがいつ無効になるか、通信競合時の扱い、端末側の状態管理が重要です。[C5][C6]</p>
+<p><strong>紙上演習：</strong> アカウントのパスワードを変えた直後、既存セッションは必ず自動的に失効する？</p>
+<details><summary>答え</summary>自動とは限りません。アプリの設計次第です。パスワード変更時の一括失効や重要セッションの再認証を明示して実装する必要があります。</details>
+
+<p><strong>講師ナレーション：</strong> 「アカウントとログイン端末を区別すると、どの権限を取り消すべきかが明確になります。」</p>
+<hr />
+</section><section class="chapter" id="ck-15"><h2>CK-15｜CSRFはなぜ起きる？ Cookieが「自動」で送られるため</h2>
+<p>ブラウザは条件に一致するCookieを自動で添付します。これが便利な一方、悪意ある別サイトから利用者のブラウザに状態変更要求を送らせる脅威（CSRF）の背景になります。<strong>Cookieを盗む必要はありません。</strong> [C8]</p>
+<p><strong>多層防御：</strong> サーバー側CSRFトークン、<code>Origin</code> 等の検証、状態変更に適切なHTTPメソッド、必要に応じてSameSite、重要操作の再認証など。<code>GET</code> が状態を変更する設計は避け、<code>SameSite</code> のみを唯一の対策としないでください。</p>
+<pre><code class="language-php">&lt;?php
+// 設計上の対比（呼び出し先・フォーム全体は省略）
+// NG: 状態変更を $_GET['action'] だけで認める
+// OK: 認証済み＋認可済み＋CSRFトークン照合＋適切なメソッドを要求
+</code></pre>
+<p><strong>紙上演習：</strong> <code>HttpOnly</code> があるのにCSRF対策が必要なのはなぜ？</p>
+<details><summary>答え</summary>HttpOnlyはJSからCookieを読ませない属性で、ブラウザが要求にCookieを添付する動作は変えません。操作が正当な意図によるものかは別途確認します。</details>
+
+<p><strong>講師ナレーション：</strong> 「Cookieを見せなくてもCookieが勝手に付く。この二つは両立します。そこがCSRFを理解するポイントです。」</p>
+<hr />
+</section><section class="chapter" id="ck-16"><h2>CK-16｜JWT、OAuth、アクセストークンとCookieの違い</h2>
+<p><strong>JWTはデータ形式、Cookieは送信・保存の仕組み</strong>です。JWTをCookieに入れることも、<code>Authorization: Bearer ...</code> で送ることもできます。JWTの署名は改ざん検出に役立ちますが、<strong>署名が有効でも盗まれた持参人トークンが有効期間内に利用され得る</strong>という問題は変わりません。</p>
+<ul>
+<li><strong>JWTの署名検証</strong>：署名鍵・許可アルゴリズム・<code>iss</code>（発行者）・<code>aud</code>（受信者）・<code>exp</code>（期限）などを正しく検証。</li>
+<li><strong>失効の難しさ</strong>：完全な自己完結型トークンは失効処理に工夫が必要。短寿命、サーバー側拒否リスト、セッション連動、リフレッシュトークン管理を検討。</li>
+<li><strong>OAuth</strong>：他サービス等への限定的なアクセスを認可する枠組み。<strong>OAuth自体はCookieでもログインそのものでもない</strong>。</li>
+<li><strong>OIDC</strong>：OAuth上に認証情報の層を提供する仕様。Cookie管理とは役割を分ける。</li>
+</ul>
+<p><strong>紙上演習：</strong> JWTを署名したのでパスワードが漏れず安全、という主張の誤りは？</p>
+<details><summary>答え</summary>通常の署名付きJWTのペイロードは暗号化されず読めます。署名は主に改ざん検出・発行者等の検証であり、Bearerトークンの盗難・再利用を防ぐものではありません。</details>
+
+<p><strong>講師ナレーション：</strong> 「名前ではなく役割で整理しましょう。Cookieは運び方、JWTは形式、OAuthは委任、セッションは状態管理です。」</p>
+<hr />
+</section><section class="chapter" id="ck-17"><h2>CK-17｜ログから盗難セッションの兆候を読む：SOC/CSIRT編</h2>
+<p><strong>絶対に認証トークンの生値をログに書かない</strong>ことを前提に、セッション単位を示す安全な識別子（ハッシュや別の監査ID）を扱います。IP/UAは変化し得るため、<strong>変わっただけで侵害確定ではありません</strong>。[C6]</p>
+<pre><code class="language-text">2026-10-20 10:00  sid_tag=A7  login_ok      ip_group=JP-1  ua_family=Mobile  risk=low
+2026-10-20 10:02  sid_tag=A7  view_profile  ip_group=JP-1  ua_family=Mobile  risk=low
+2026-10-20 10:04  sid_tag=A7  export_data   ip_group=Unknown-2 ua_family=Desktop risk=high
+2026-10-20 10:05  sid_tag=A7  revoke        reason=manual_review
+</code></pre>
+<p><strong>読み方：</strong> 最初の2件は同一セッションの通常操作、3件目はセッション識別子が同じまま通信特性と行為が変わったため追加調査の候補。VPN、携帯網、社内プロキシ、OS更新等でIP/UAの変化は生じ得ます。<strong>確定診断には複数の文脈情報</strong>が必要です。</p>
+<p><strong>推奨する観点：</strong> 異常な地域/ASN変化、同時期の互いに不自然な利用、通常と異なる操作、権限変更、失敗認証との関連、端末管理状況、脅威インテリジェンスとの照合。監視には保存期間・アクセス制御・個人情報保護も必要です。[C6]</p>
+<p><strong>紙上演習：</strong> <code>sid_tag=A7</code> のIPが変化した。アラートを即時に「侵害確定」にすべき？</p>
+<details><summary>答え</summary>確定とはしません。高リスクな操作などと組み合わせて評価し、必要ならステップアップ認証・当該セッションの一時失効を判断します。誤検知と検知漏れの両方を考慮します。</details>
+
+<p><strong>講師ナレーション：</strong> 「ログ分析で重要なのは単一の怪しい値より、同じセッションの時間的な変化と操作の文脈です。」</p>
+<hr />
+</section><section class="chapter" id="ck-18"><h2>CK-18｜侵害時に何をする？ 失効・端末調査・再認証</h2>
+<p><strong>ケース：</strong> 利用者から「身に覚えのないアカウント操作」の報告を受けた。セッション乗っ取りの疑いはあるが、原因は未確定。</p>
+<ol>
+<li><strong>影響範囲を把握</strong>：対象アカウント、現在のセッション、実行された重要操作、ログの保全。</li>
+<li><strong>被害の継続を止める</strong>：疑わしいセッションや必要な全セッションを<strong>サーバー側で失効</strong>。重要操作を一時制限する判断も。</li>
+<li><strong>端末・拡張・認証要素を確認</strong>：マルウェアや不審拡張機能の可能性。パスワードを変更するだけで十分とは限らない。</li>
+<li><strong>認証と状態を回復</strong>：安全な端末から再認証、必要に応じてパスキーやMFAの再確認、連携サービス・APIトークンの失効。</li>
+<li><strong>記録と改善</strong>：原因別の再発防止、監視条件、設計変更、利用者連絡。法令/規程に沿った報告判断。</li>
+</ol>
+<p><strong>重要：</strong> ブラウザのCookie削除のみでは第三者が持つコピーを無効化できません。また、感染端末を放置すれば再ログインしても再侵害され得ます。[C5][C6]</p>
+<p><strong>紙上演習：</strong> 端末感染が疑われるのに、同じ端末ですぐパスワード変更して終了する方法の問題点は？</p>
+<details><summary>答え</summary>感染要因が残っていれば新しい資格情報や新セッションが再び露出する可能性があります。セッション失効、端末調査・隔離、安全な端末での再認証などを連動させます。</details>
+
+<p><strong>講師ナレーション：</strong> 「漏れた情報の再利用を止め、さらに同じ原因で漏れない状態に戻す。二段階の対応が必要です。」</p>
+<hr />
+</section><section class="chapter" id="ck-19"><h2>CK-19｜DBSC・デバイス結合と将来の防御：何が変わる？</h2>
+<p><strong>従来のBearerセッション</strong>では、秘密値の所持だけで継続できる設計が主流です。<strong>Device Bound Session Credentials（DBSC）</strong> は、端末側に保持する鍵に基づく署名等で<strong>端末が鍵を保持することの証明</strong>を求め、Cookieだけを別端末へ持ち出す攻撃の価値を下げる発想です。実装・ブラウザ対応・サービス側の採用状況は変化します。<strong>技術仕様の存在と、全サービスへの適用を混同しない</strong>でください。[C7][C13]</p>
+<pre><code class="language-text">従来：ブラウザ ─[セッションID]─&gt; サーバー
+                漏れたIDがそのまま使える場合がある
+
+端末結合型の発想：ブラウザ ─[更新要求＋端末鍵の証明]─&gt; サーバー
+                          ただのIDコピーだけでは継続しにくい
+</code></pre>
+<p><strong>残るリスク：</strong> 同じ端末上での侵害・セッション内の不正操作、ブラウザの実装や結合の対象外、復旧・端末移行・鍵喪失、旧方式との併用など。<strong>DBSCを導入したらXSSやCSRFが解決するわけではありません。</strong></p>
+<p><strong>紙上演習：</strong> 「DBSC対応ブラウザがある」＝「すべてのWebサービスのCookie乗っ取りが防げる」？</p>
+<details><summary>答え</summary>いいえ。サーバー側の採用・接続条件、端末での鍵の保護、適用範囲によって効力が決まります。現行のセッション失効やXSS対策なども必要です。</details>
+
+<p><strong>講師ナレーション：</strong> 「未来の対策は盗まれた秘密の価値を下げますが、すべての攻撃が消えるわけではありません。」</p>
+<hr />
+</section><section class="chapter" id="ck-20"><h2>CK-20｜総合ケーススタディ：設計レビューを完成させよう</h2>
+<p><strong>架空サービスの設定：</strong> ログインはパスキー対応。<code>Set-Cookie: SID=[架空ID]; Domain=example.test; Max-Age=2592000</code> で管理。サーバーはログアウト時にCookie削除だけ行う。ログに <code>Cookie:</code> の値を記録。管理画面の設定変更にCSRF検証なし。すべての端末で同じセッションIDを使い、重要操作に追加認証を求めない。</p>
+<p><strong>レビュー課題：</strong> 不備を6個以上見つけ、①原因、②悪用の成立条件、③優先対策、④対策しても残るリスクを説明する。</p>
+<details><summary>模範解答（理由つき）</summary>
+
+<ol>
+<li><strong>Cookieの属性不足</strong>：<code>Secure</code> / <code>HttpOnly</code> / <code>SameSite</code> / 必要に応じて <code>__Host-</code> などを検討。属性で端末感染は防げない。</li>
+<li><strong>Domainが広い</strong>：サブドメインが混在するならhost-only設計が望ましい。ホスト侵害自体は別の問題。</li>
+<li><strong>長期間の識別子利用</strong>：アイドル/絶対期限をサーバー側で強制し、高リスク操作は再認証。期限内の盗用は残る。</li>
+<li><strong>ログアウトの処理</strong>：Cookieを消すだけでなく、サーバー側保存先でIDを失効させる。失効前の操作は既に発生した可能性がある。</li>
+<li><strong>ログに秘密を書いている</strong>：生Cookieを記録せず別の監査識別子を使い、過去ログの保護・削除範囲を調査。</li>
+<li><strong>CSRF検証不足</strong>：重要な状態変更はCSRFトークンやOrigin検証を導入。SameSiteだけでは万能ではない。</li>
+<li><strong>全端末同じID</strong>：端末ごとにセッションを分離して影響範囲を局所化。アカウント全体の侵害には一括失効も必要。</li>
+<li><strong>重要操作の追加確認なし</strong>：高リスク操作を再認証・ステップアップで保護。ただし同一端末侵害には追加考慮が必要。</li>
+<li><strong>端末侵害の検知/対応不足</strong>：ログ・リスクベース判断・セッション管理画面・失効導線を設計。IP変化だけで侵害を断定しない。</li>
+</ol>
+</details>
+
+<p><strong>講師ナレーション：</strong> 「『属性を足せば全部安全』ではありません。認証・セッション・アプリ・端末・監視の5層に分けて考えると、脆弱性を見逃しにくくなります。」</p>
+<hr />
+</section><section class="chapter" id="appendix-22"><h2>用語辞典：言葉の違いを即答できるようにする</h2>
+<table>
+<thead>
+<tr>
+  <th>用語</th>
+  <th>正確な意味</th>
+  <th>誤解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Cookie</td>
+  <td>HTTPでの状態保持用の名前と値</td>
+  <td>Cookieがあればログイン済み</td>
+</tr>
+<tr>
+  <td>セッション</td>
+  <td>認証や状態を継続して管理する仕組み</td>
+  <td>Cookieそのもの</td>
+</tr>
+<tr>
+  <td>セッションID</td>
+  <td>セッションを指し示す秘密の識別子</td>
+  <td>パスワードが入っている</td>
+</tr>
+<tr>
+  <td>Bearer</td>
+  <td>秘密を所持する者に権限が結びつく性質</td>
+  <td>MFA済みなら盗めない</td>
+</tr>
+<tr>
+  <td>HttpOnly</td>
+  <td>JSのCookie読み取り制限</td>
+  <td>XSSを完全に防ぐ</td>
+</tr>
+<tr>
+  <td>Secure</td>
+  <td>非セキュアな通信でのCookie送信制限</td>
+  <td>マルウェアを防ぐ</td>
+</tr>
+<tr>
+  <td>SameSite</td>
+  <td>クロスサイトのCookie送信条件</td>
+  <td>CSRF対策が不要になる</td>
+</tr>
+<tr>
+  <td>session fixation</td>
+  <td>認証前から知られるIDの継続利用</td>
+  <td>ログイン後にIDを盗むことと同じ</td>
+</tr>
+<tr>
+  <td>CSRF</td>
+  <td>Cookie等が自動添付されるブラウザに不正操作をさせる</td>
+  <td>Cookieを読む攻撃</td>
+</tr>
+<tr>
+  <td>XSS</td>
+  <td>未信頼データがブラウザのスクリプトとして動く</td>
+  <td>Cookieを盗めないなら無害</td>
+</tr>
+<tr>
+  <td>セッション失効</td>
+  <td>サーバーがIDを受け付けない状態にする</td>
+  <td>ブラウザのCookie削除と同じ</td>
+</tr>
+<tr>
+  <td>CHIPS</td>
+  <td>サイトごとに区画化したCookie保存</td>
+  <td>盗まれた秘密を暗号的に無効化</td>
+</tr>
+<tr>
+  <td>DBSC</td>
+  <td>端末鍵の証明をセッション継続に用いる考え方</td>
+  <td>全サイトで利用可能な万能技術</td>
+</tr>
+</tbody>
+</table>
+</section><section class="chapter" id="appendix-23"><h2>公式根拠と参照先</h2>
+<p><strong>読者への約束：</strong> 仕様上の性質、ベストプラクティス、現場判断、今後の技術を区別します。以下は一次資料・公式文書です。ブラウザの実装差や製品の変更は導入時点で再確認してください。</p>
+<ul>
+<li><strong>[C1] IETF RFC 6265 — HTTP State Management Mechanism</strong>：https://datatracker.ietf.org/doc/html/rfc6265 （CK-01〜03）</li>
+<li><strong>[C2] MDN — Set-Cookie</strong>：https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie （CK-01〜07）</li>
+<li><strong>[C3] MDN — Using HTTP cookies</strong>：https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies （CK-01〜08）</li>
+<li><strong>[C4] MDN — Cookie request header</strong>：https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cookie （CK-03）</li>
+<li><strong>[C5] OWASP — Session Management Cheat Sheet</strong>：https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html （CK-02, CK-04, CK-08, CK-11〜18）</li>
+<li><strong>[C6] OWASP — Cookie Theft Mitigation Cheat Sheet</strong>：https://cheatsheetseries.owasp.org/cheatsheets/Cookie_Theft_Mitigation_Cheat_Sheet.html （CK-02, CK-12〜18）</li>
+<li><strong>[C7] NIST SP 800-63B-4 — Session Management</strong>：https://pages.nist.gov/800-63-4/sp800-63b/session/ （CK-06, CK-19）</li>
+<li><strong>[C8] OWASP — CSRF Prevention Cheat Sheet</strong>：https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html （CK-06, CK-12, CK-15）</li>
+<li><strong>[C9] PHP Manual — Securing Session INI Settings</strong>：https://www.php.net/manual/en/session.security.ini.php （CK-09〜11）</li>
+<li><strong>[C10] MDN — CHIPS</strong>：https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Third-party_cookies/Partitioned_cookies （CK-07）</li>
+<li><strong>[C11] PHP Manual — session_set_cookie_params</strong>：https://www.php.net/manual/en/function.session-set-cookie-params.php （CK-10）</li>
+<li><strong>[C12] PHP Manual — session_regenerate_id</strong>：https://www.php.net/manual/en/function.session-regenerate-id.php （CK-11）</li>
+<li><strong>[C13] W3C — Device Bound Session Credentials（draft/specification）</strong>：https://w3c.github.io/webappsec-dbsc/ （CK-19、仕様・対応の違いに注意）</li>
+</ul>
+</section><section class="chapter" id="appendix-24"><h2>知識チェック：次の3つを口頭で説明できれば合格</h2>
+<ol>
+<li><code>Set-Cookie</code> と <code>Cookie</code> の送信方向は？ なぜCookie属性は要求ヘッダーには出ない？</li>
+<li>盗まれた有効セッションがMFAを迂回するように見えるのはなぜ？ 防御を3層に分けると？</li>
+<li>ログアウト、Cookie削除、セッション失効、アカウント全端末ログアウトの違いは？</li>
+</ol>
+<details><summary>確認用の解答</summary>1. レスポンス→ブラウザでSet-Cookie、リクエスト→サーバーでCookie。送信条件の属性はブラウザに保存される。2. 認証後のBearer秘密の所持を信頼するため。アプリ（XSS/CSRF/認可）、端末（感染対策）、サーバー（失効/期限/監視）で守る。3. Cookie削除はブラウザ側、失効はサーバー側拒否、全端末ログアウトはその利用者の全セッション失効を意味する。</details>
+
+</section></div><footer>この教材は閲覧・思考・コードレビュー用です。反例を実サービスに使わないでください。仕様と製品実装の差は一次資料で確認してください。</footer></main></div><script src="textbook.js" defer></script></body></html>

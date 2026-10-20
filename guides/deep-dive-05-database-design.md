@@ -1,5 +1,8 @@
 # 特別講義05：DB設計を基礎から運用まで読む
 
+**深く学びたい方：** [データベース完全読本（18講義）](../textbooks/01-database-textbook.md)／[Web版](../docs/database-book.html) へ進んでください。
+
+
 ## テーブルの関係
 
 ```sql

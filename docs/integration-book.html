@@ -1,0 +1,189 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="注文閲覧APIを題材にした認証・認可・DBの統合設計。実行せずに読める日本語の技術参考書。"><title>Cookie×DB 総合コードレビュー | Web Security Journey</title><link rel="stylesheet" href="textbook.css"></head>
+<body><a href="#main" class="skip">本文へ移動</a><header class="top"><div class="brand">&lt;/&gt; WEB SECURITY JOURNEY — REFERENCE LIBRARY</div><nav class="toplinks" aria-label="ほかの教材"><a href="index.html">全36章</a> <a href="database-book.html">DB読本</a> <a href="cookie-book.html">Cookie読本</a></nav></header>
+<div class="layout"><aside class="sidebar" aria-label="章ナビゲーション"><div class="eyebrow">INTEGRATED DESIGN REVIEW</div><h2>Cookie×DB 総合コードレビュー</h2><label for="toc-filter" class="small">目次を検索</label><input id="toc-filter" type="search" class="search" placeholder="キーワードで章を絞り込む"><nav class="toc"><a href="#appendix-1">1. 概観：CookieをDBに直接送るわけではない</a>
+<a href="#appendix-2">2. 反例：SQLはパラメータ化済みでも危険</a>
+<a href="#appendix-3">3. 安全側の設計断片：認証・認可・パラメータ化を分離</a>
+<a href="#appendix-4">4. セッションの保存先と失効を設計する</a>
+<a href="#appendix-5">5. 読むだけの時系列：認証と失効を見比べる</a>
+<a href="#appendix-6">6. レビュー演習：10個の安全設計を説明する</a>
+<a href="#appendix-7">7. 参照の順序</a></nav><p class="hint">本文はすべて学習用の静的な文章とコードブロックです。PHPやSQLのサンプルは実行されません。音声読み上げはブラウザ端末内の機能です。</p></aside>
+<main id="main"><div class="intro"><div class="eyebrow">INTEGRATED DESIGN REVIEW · READ ONLY</div><h1>Cookie×DB 総合コードレビュー</h1><p>注文閲覧APIを題材にした認証・認可・DBの統合設計</p></div><div class="controls" aria-label="読み上げ操作"><button type="button" id="voice-play">▶ 選択中の章を読み上げ</button><button type="button" id="voice-stop">■ 停止</button><label class="small" for="voice-rate">速度</label><select id="voice-rate"><option value="0.85">ゆっくり</option><option value="1" selected>標準</option><option value="1.15">速め</option></select><span id="voice-status" role="status" aria-live="polite">左の目次で章を選んでください</span></div>
+<div class="content"><h1>総合編：Cookieとデータベースはどうつながっているか？ — 認証済み注文閲覧APIをコードレビュー</h1>
+<blockquote>
+<p><strong>読解専用。</strong> 脆弱なアプリは起動せず、実際の通信も送信しません。データは架空。ここではDB読本とCookie読本の知識を統合します。実用コードの完成品ではなく、安全設計の判断点を明らかにする抜粋です。</p>
+</blockquote>
+<section class="chapter" id="appendix-1"><h2>1. 概観：CookieをDBに直接送るわけではない</h2>
+<pre><code class="language-text">ブラウザ
+ │ GET /orders
+ │ Cookie: __Host-session=[架空ID]
+ ▼
+Webサーバー / PHP
+ │ ① HTTPSを受理しCookieを読む
+ │ ② セッション保存先からIDを照合（期限・失効も見る）
+ │ ③ ログイン済み利用者のuser_idを得る
+ │ ④ 対象の注文を見る権限を判定
+ │ ⑤ 固定したSQL文に認可済みuser_idを束縛
+ ▼
+データベース（orders.customer_idで絞り込む）
+ │ ⑥ 最小限の列を返す
+ ▼
+PHP
+ │ ⑦ JSON応答の構造と機密情報を確認
+ ▼
+ブラウザ（HTMLへ表示する場合は文字列として安全に扱う）
+</code></pre>
+<p><strong>DBにはログイン用のセッション保存先と、業務データ保存先の2種類の役割がある</strong>ことに注目します。セッション保存先はRedisなどDB以外の場合もあり、説明を簡潔にするため同じ図に示しています。HTTP CookieをブラウザからSQLとしてそのままDBへ送るのではありません。</p>
+</section><section class="chapter" id="appendix-2"><h2>2. 反例：SQLはパラメータ化済みでも危険</h2>
+<pre><code class="language-php">&lt;?php
+session_start();
+$requestedId = (int)($_GET['customer_id'] ?? 0);
+$stmt = $pdo-&gt;prepare('SELECT id, total_yen FROM orders WHERE customer_id = :id');
+$stmt-&gt;execute([':id' =&gt; $requestedId]);
+$orders = $stmt-&gt;fetchAll(PDO::FETCH_ASSOC);
+</code></pre>
+<p><strong>このコードはSQLインジェクションに対しては値の束縛がある</strong>一方、要求元利用者と <code>$requestedId</code> の関係を確認していません。ログイン済みなら自由に顧客IDを指定して注文閲覧できる設計なら、オブジェクト単位の認可不足です。</p>
+</section><section class="chapter" id="appendix-3"><h2>3. 安全側の設計断片：認証・認可・パラメータ化を分離</h2>
+<pre><code class="language-php">&lt;?php
+// session_start()やCookie属性・期限・失効チェックは前段ですでに完了した想定
+$userId = $_SESSION['user_id'] ?? null;
+if (!is_int($userId)) {
+    // 401 応答を返して終了する（関数・出力処理は省略）
+    return;
+}
+
+// 顧客個人の注文閲覧では要求パラメータで所有者を選ばせない例
+$stmt = $pdo-&gt;prepare(
+    'SELECT id, total_yen, status FROM orders WHERE customer_id = :owner ORDER BY id DESC'
+);
+$stmt-&gt;bindValue(':owner', $userId, PDO::PARAM_INT);
+$stmt-&gt;execute();
+$orders = $stmt-&gt;fetchAll(PDO::FETCH_ASSOC);
+</code></pre>
+<p><strong>解説：</strong> <code>$_SESSION['user_id']</code> は事前に安全に発行・照合されたセッションを前提とし、利用者が渡した <code>customer_id</code> を所有者IDとして採用していません。<code>prepare</code> はSQL構造と値を分離します。API応答ではJSONの型と適切なContent-Typeを扱い、HTML表示時は<code>textContent</code>等で文字列として表示します。</p>
+<p><strong>限界：</strong> 管理者が他人の注文を見るユースケース、委任権限、所属部署の権限、複数テナント、注文キャンセルなどでは追加の認可ポリシーが必要です。これをコピペしても本番で安全な認証システムは完成しません。</p>
+</section><section class="chapter" id="appendix-4"><h2>4. セッションの保存先と失効を設計する</h2>
+<table>
+<thead>
+<tr>
+  <th>格納項目</th>
+  <th>役割</th>
+  <th>気を付ける点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>session_id_hash</code></td>
+  <td>セッション秘密の照合識別子</td>
+  <td>生IDのログ・DB流出を避けるための設計例</td>
+</tr>
+<tr>
+  <td><code>user_id</code></td>
+  <td>認証主体</td>
+  <td>最小限のアカウント情報と関連付け</td>
+</tr>
+<tr>
+  <td><code>created_at</code></td>
+  <td>発行時刻</td>
+  <td>認証時点・絶対期限の判断</td>
+</tr>
+<tr>
+  <td><code>last_seen_at</code></td>
+  <td>最終利用</td>
+  <td>アイドル期限をサーバー側で判定</td>
+</tr>
+<tr>
+  <td><code>expires_at</code></td>
+  <td>絶対失効時刻</td>
+  <td>Cookie期限だけに頼らない</td>
+</tr>
+<tr>
+  <td><code>revoked_at</code></td>
+  <td>明示失効の印</td>
+  <td>存在する場合は以後の利用を拒否</td>
+</tr>
+<tr>
+  <td><code>risk_state</code></td>
+  <td>リスク評価状態</td>
+  <td>指標の誤検知・保存期間・プライバシーを検討</td>
+</tr>
+</tbody>
+</table>
+<p><strong>セッションDBと業務DBの違い：</strong> 業務DBの <code>orders.customer_id</code> は<em>顧客</em>を表し、セッション保存先の <code>user_id</code> は<em>認証された主体</em>を表します。両者の紐付けが正しいかが認可の核心です。</p>
+</section><section class="chapter" id="appendix-5"><h2>5. 読むだけの時系列：認証と失効を見比べる</h2>
+<table>
+<thead>
+<tr>
+  <th>時刻</th>
+  <th>イベント</th>
+  <th>セッション状態</th>
+  <th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>10:00</td>
+  <td>ログイン成功</td>
+  <td>新しいIDが発行される</td>
+  <td>利用可能</td>
+</tr>
+<tr>
+  <td>10:03</td>
+  <td>注文参照</td>
+  <td>所有者の注文だけ返す</td>
+  <td>正常</td>
+</tr>
+<tr>
+  <td>10:05</td>
+  <td>不審な操作の兆候</td>
+  <td>高リスクとして評価</td>
+  <td>調査・追加認証</td>
+</tr>
+<tr>
+  <td>10:06</td>
+  <td>管理者側で失効</td>
+  <td><code>revoked_at</code> に記録</td>
+  <td>以後IDを拒否</td>
+</tr>
+<tr>
+  <td>10:07</td>
+  <td>同じIDで再要求</td>
+  <td>失効を検出</td>
+  <td>401等で拒否</td>
+</tr>
+</tbody>
+</table>
+<p><strong>要点：</strong> クライアントがCookieを持っていても、サーバーが失効を確認すれば拒否できます。逆にブラウザからCookieを消すだけでは、第三者が持つコピーを拒否できるとは限りません。</p>
+</section><section class="chapter" id="appendix-6"><h2>6. レビュー演習：10個の安全設計を説明する</h2>
+<p>次の項目を見ながら、<strong>誰が／どのコードで／何を保証するか</strong>を答えてください。</p>
+<ol>
+<li>HTTPSを強制する理由は？</li>
+<li><code>HttpOnly</code> の目的と限界は？</li>
+<li>ログイン成功時にIDを更新する理由は？</li>
+<li>セッションIDが失効していることをどこで判断する？</li>
+<li>SQLのプレースホルダーで防げない脆弱性は？</li>
+<li>外部キーを付けても不要になるわけではない対策は？</li>
+<li>注文一覧に <code>SELECT *</code> を使わない理由は？</li>
+<li>なぜ <code>orders.customer_id</code> と <code>user_id</code> の関係を確認する？</li>
+<li>Cookie値の生ログが危険なのは？</li>
+<li>端末感染が疑われる場合の対応はCookie削除だけでよいか？</li>
+</ol>
+<details><summary>解答と補足</summary>
+
+<ol>
+<li>通信経路での盗聴・改ざんを防ぐため。端末内部の侵害は防げない。</li>
+<li>JSからのCookie読取を制限する。XSSによる同一ブラウザ上の不正操作は別問題。</li>
+<li>認証前に把握されたIDを認証後の権限と結び付けないため。</li>
+<li>サーバー側のセッション保存先で期限・失効フラグを確認する。</li>
+<li>IDOR、XSS、CSRF、認可不足などは別の対策が必要。</li>
+<li>APIのユーザー単位の認可、入力・出力処理、最小権限など。</li>
+<li>機密列の混入や列追加の影響、不要な通信量を防ぐため。</li>
+<li>「ログインしている」だけで「他人の注文が見られる」わけではないから。</li>
+<li>セッションIDは持参人型の秘密になり得るため、ログ流出が乗っ取りに直結する可能性がある。</li>
+<li>不十分。サーバー側失効・端末調査・安全な端末での再認証などが必要。</li>
+</ol>
+</details>
+
+</section><section class="chapter" id="appendix-7"><h2>7. 参照の順序</h2>
+<p>はじめに<a href="database-book.html">データベース完全読本</a>のDB-01〜06、続いて<a href="cookie-book.html">Cookie・セッション完全読本</a>のCK-01〜05、最後に両書の応用編と本章を読むと理解しやすくなります。</p>
+<p>一次資料： <a href="https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html">OWASP Session Management</a> ／ <a href="https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">OWASP SQL Injection Prevention</a> ／ <a href="https://owasp.org/API-Security/">OWASP API Security</a> ／ <a href="https://www.php.net/manual/en/book.session.php">PHP Manual</a>。</p>
+</section></div><footer>この教材は閲覧・思考・コードレビュー用です。反例を実サービスに使わないでください。仕様と製品実装の差は一次資料で確認してください。</footer></main></div><script src="textbook.js" defer></script></body></html>
