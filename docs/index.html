@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="HTML・CSS・JavaScript・PHP・データベース・Webセキュリティを基礎から学ぶ日本語ハンズオン教材。">
+<title>Web Security Journey | コードを読んで仕組みと脆弱性を理解する</title><link rel="stylesheet" href="portal.css"></head>
+<body><a class="skip" href="#content">内容へスキップ</a>
+<header class="top"><div class="brand"><span class="logo">&lt;/&gt;</span><span>WEB SECURITY <strong>JOURNEY</strong></span></div><span class="edition">日本語・全36章 / 読解型ハンズオン教材</span></header>
+<div class="frame"><aside class="sidebar" aria-label="章一覧">
+<div class="sidebar-heading"><div class="eyebrow">YOUR LEARNING PATH</div><h2>コース一覧</h2><label class="search-label" for="search">章を検索</label><input type="search" id="search" placeholder="例: SQL, HTML, XSS"></div>
+<p class="sidebar-feature"><a href="cookie-session.html">★ 特別講義：Cookie乗っ取りの完全解説</a></p>
+<div id="lesson-list" class="lesson-list"></div><div class="sidebar-foot">進捗はこのブラウザにのみ保存されます。<br>コードの実行は不要です。危険版は閲覧専用です。</div></aside>
+<main id="content" tabindex="-1" class="content"><div class="hero"><div class="eyebrow">READ → TRACE → COMPARE → EXPLAIN</div>
+<h1>1行ずつ読み解く。<br><em>危険と安全の差を理解する。</em></h1>
+<p>HTMLの最初のタグからJavaScript・PHP・データベース・脆弱性・安全設計まで。全36章に日本語ナレーション、危険版／安全版コード、行ごとの注釈、紙上ハンズオン、解答を収録。コードの実行もサーバーも不要です。</p>
+<div class="hero-actions"><a class="outline" href="#lesson-3">HTMLから学習</a><a class="outline" href="#lesson-15">SQLi対策の章を見る</a><a class="outline" href="#lesson-31">Cookie乗っ取り編（第31章〜）</a><a class="outline" href="cookie-session.html">★ 特別講義：Cookie窃取の完全解説</a><span class="label-quiet">すべてのサンプルは閲覧専用です</span></div>
+<div class="progress"><div class="progress-info"><span>学習の進み具合</span><strong id="progress-label">0 / 36 章</strong></div><div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div></div></div>
+<section class="lesson" aria-labelledby="lesson-title"><div class="lesson-meta"><span id="lesson-number">LESSON 01</span><span id="lesson-level"></span></div>
+<h2 id="lesson-title"></h2><p id="lesson-goals" class="lead"></p>
+<div class="block"><h3>全体像をつかむ</h3><p id="lesson-model"></p></div>
+<div class="block narration"><div class="heading-inline"><h3>🎙 講師ナレーション</h3><div class="narration-controls"><button id="play" type="button">▶ 読み上げ</button><button id="stop" type="button" class="soft">■ 停止</button></div></div>
+<p id="lesson-narration"></p><label class="speed">読み上げ速度 <input id="rate" type="range" min="0.7" max="1.3" step="0.1" value="1"><output id="rate-value">1.0倍</output></label><small id="voice-info">日本語音声は利用端末・ブラウザの音声機能に依存します。音声ファイルの外部送信は行いません。</small></div>
+<div class="steps"><div class="step"><span class="num">01</span><div><h3>コードを読む</h3><p id="lesson-practice"></p></div></div>
+<div class="step"><span class="num">02</span><div><h3>結果を予測する</h3><p id="lesson-observe"></p></div></div>
+<div class="step"><span class="num">03</span><div><h3>危険な作り</h3><p id="lesson-risky"></p></div></div>
+<div class="step"><span class="num">04</span><div><h3>根本原因</h3><p id="lesson-why"></p></div></div>
+<div class="step"><span class="num">05</span><div><h3>安全な対策</h3><p id="lesson-defense"></p></div></div>
+<div class="step"><span class="num">06</span><div><h3>紙上レビュー</h3><p id="lesson-verify"></p></div></div></div>
+<p class="reading-safety" id="lesson-reading-warning"></p>
+<div class="code-pair" aria-label="脆弱な設計と改善版の比較">
+  <section class="compare-card unsafe"><div class="compare-head"><h3>注意：危険なコード（反例）</h3><button type="button" class="soft" id="copy-unsafe">反例をコピー</button></div><pre><code id="lesson-unsafe-code"></code></pre></section>
+  <section class="compare-card safe"><div class="compare-head"><h3>改善したコード（教材用の抜粋）</h3><button type="button" class="soft" id="copy-code">安全側をコピー</button></div><pre><code id="lesson-code"></code></pre></section>
+</div>
+<div class="block"><h3>一行ずつ意味を確認</h3><ol id="line-notes" class="note-list"></ol></div>
+<div class="block"><h3>紙上で処理を追う</h3><p id="lesson-mental-trace" class="flowline"></p><h3>修正の要点</h3><p id="lesson-code-reason"></p></div>
+<div class="block"><h3>自分で考える（実行不要）</h3><p id="lesson-thought" class="thought"></p></div>
+<div class="block quiz"><div class="eyebrow">KNOWLEDGE CHECK</div><h3 id="lesson-question"></h3><button id="answer-toggle" type="button" class="soft" aria-expanded="false">答えを確認</button><p id="lesson-answer" hidden></p><div id="reference-box" hidden><strong>一次資料：</strong> <a id="lesson-ref" rel="noopener noreferrer" target="_blank"></a></div></div>
+<div class="lesson-bottom"><button id="complete" type="button" class="primary">✓ この章を完了</button><button id="next" type="button" class="secondary">次の章 →</button></div></section>
+<footer>読解・比較・考察を目的とした静的教材です。危険な反例を実行する必要はありません。どのコード断片も本番用の完成実装とはみなさないでください。</footer>
+</main></div><script src="lessons.js" defer></script><script src="portal.js" defer></script></body></html>
